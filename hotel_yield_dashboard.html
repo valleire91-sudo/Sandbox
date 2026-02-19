@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UK Hotel Yield Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy:   #0d1b2a;
+      --dark:   #1a2e45;
+      --mid:    #1e3a55;
+      --accent: #2a9d8f;
+      --gold:   #e9c46a;
+      --red:    #e76f51;
+      --green:  #57cc99;
+      --text:   #e8edf2;
+      --muted:  #8ba3bc;
+      --card:   #16293e;
+      --border: #1f3a56;
+      --radius: 10px;
+    }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--navy);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--dark);
+      border-bottom: 1px solid var(--border);
+      padding: 0 28px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .logo-icon {
+      width: 32px; height: 32px;
+      background: var(--accent);
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .header-meta { color: var(--muted); font-size: 0.82rem; text-align: right; }
+    .header-meta strong { color: var(--gold); }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      background: var(--dark);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 28px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .toolbar label { color: var(--muted); font-size: 0.8rem; margin-right: 4px; }
+    .toolbar select, .toolbar input[type=date] {
+      background: var(--mid);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 6px 10px;
+      font-size: 0.83rem;
+      cursor: pointer;
+    }
+    .toolbar select:focus, .toolbar input:focus { outline: 2px solid var(--accent); }
+    .btn {
+      padding: 7px 16px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.83rem;
+      font-weight: 600;
+      transition: opacity .15s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+    .spacer { flex: 1; }
+
+    /* ── Main Layout ── */
+    main { padding: 24px 28px; max-width: 1600px; margin: 0 auto; }
+
+    /* ── Section Title ── */
+    .section-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    /* ── KPI Cards ── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .kpi-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 18px;
+      position: relative;
+      overflow: hidden;
+      transition: transform .15s;
+    }
+    .kpi-card:hover { transform: translateY(-2px); }
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+    .kpi-card.accent::before  { background: var(--accent); }
+    .kpi-card.gold::before    { background: var(--gold); }
+    .kpi-card.green::before   { background: var(--green); }
+    .kpi-card.red::before     { background: var(--red); }
+    .kpi-card.purple::before  { background: #a78bfa; }
+    .kpi-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 8px; }
+    .kpi-value { font-size: 2rem; font-weight: 700; line-height: 1; margin-bottom: 6px; }
+    .kpi-card.accent .kpi-value  { color: var(--accent); }
+    .kpi-card.gold .kpi-value    { color: var(--gold); }
+    .kpi-card.green .kpi-value   { color: var(--green); }
+    .kpi-card.red .kpi-value     { color: var(--red); }
+    .kpi-card.purple .kpi-value  { color: #a78bfa; }
+    .kpi-delta {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 20px;
+    }
+    .kpi-delta.up   { background: rgba(87,204,153,.15); color: var(--green); }
+    .kpi-delta.down { background: rgba(231,111,81,.15); color: var(--red); }
+    .kpi-sub { font-size: 0.72rem; color: var(--muted); margin-top: 6px; }
+
+    /* ── Charts Grid ── */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .charts-grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    @media (max-width: 1100px) {
+      .charts-grid { grid-template-columns: 1fr; }
+      .charts-grid-3 { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 680px) {
+      .charts-grid-3 { grid-template-columns: 1fr; }
+    }
+    .chart-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .chart-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      gap: 8px;
+    }
+    .chart-title { font-size: 0.9rem; font-weight: 600; }
+    .chart-sub   { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+    .chart-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .badge-accent { background: rgba(42,157,143,.2); color: var(--accent); }
+    .badge-gold   { background: rgba(233,196,106,.2); color: var(--gold); }
+    .chart-wrap { position: relative; height: 240px; }
+    .chart-wrap-sm { position: relative; height: 210px; }
+
+    /* ── Property Table ── */
+    .table-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 28px;
+    }
+    .table-header {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .table-header .chart-title { font-size: 0.95rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    thead th {
+      background: var(--mid);
+      padding: 10px 14px;
+      text-align: left;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: var(--muted);
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    thead th:hover { color: var(--text); }
+    thead th.sorted { color: var(--accent); }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+    tbody tr:hover { background: rgba(255,255,255,.03); }
+    tbody tr:last-child { border-bottom: none; }
+    tbody td { padding: 11px 14px; vertical-align: middle; }
+    .prop-name { font-weight: 600; }
+    .prop-city { font-size: 0.72rem; color: var(--muted); margin-top: 1px; }
+    .star { color: var(--gold); font-size: 0.75rem; }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+    .pill-green  { background: rgba(87,204,153,.15); color: var(--green); }
+    .pill-amber  { background: rgba(233,196,106,.15); color: var(--gold); }
+    .pill-red    { background: rgba(231,111,81,.15);  color: var(--red); }
+    .occ-bar-wrap { display: flex; align-items: center; gap: 8px; }
+    .occ-bar { height: 6px; border-radius: 3px; background: var(--border); flex: 1; min-width: 60px; }
+    .occ-bar-fill { height: 100%; border-radius: 3px; }
+    .num-right { text-align: right; }
+    .text-green { color: var(--green); }
+    .text-red   { color: var(--red); }
+    .text-muted { color: var(--muted); }
+
+    /* ── Heatmap ── */
+    .heatmap-grid {
+      display: grid;
+      grid-template-columns: auto repeat(12, 1fr);
+      gap: 3px;
+      font-size: 0.68rem;
+    }
+    .hm-label { color: var(--muted); padding: 3px 6px; text-align: right; line-height: 1; display: flex; align-items: center; justify-content: flex-end; }
+    .hm-month { color: var(--muted); padding: 3px; text-align: center; font-size: 0.65rem; }
+    .hm-cell {
+      padding: 7px 3px;
+      border-radius: 4px;
+      text-align: center;
+      font-weight: 600;
+      font-size: 0.7rem;
+    }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 16px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+    footer strong { color: var(--text); }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--navy); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════ HEADER ══════════════════ -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">🏨</div>
+    UK Hotel Yield Dashboard
+  </div>
+  <div class="header-meta">
+    Portfolio: <strong>Meridian Hospitality Group</strong> &nbsp;|&nbsp;
+    Live data as of <strong id="liveDate"></strong>
+  </div>
+</header>
+
+<!-- ══════════════════ TOOLBAR ══════════════════ -->
+<div class="toolbar">
+  <div>
+    <label>Period</label>
+    <select id="periodSelect">
+      <option value="ytd">Year to Date 2026</option>
+      <option value="q1">Q1 2026</option>
+      <option value="q4">Q4 2025</option>
+      <option value="fy2025">Full Year 2025</option>
+    </select>
+  </div>
+  <div>
+    <label>Property</label>
+    <select id="propFilter">
+      <option value="all">All Properties (8)</option>
+      <option value="london">London Portfolio</option>
+      <option value="regional">Regional Cities</option>
+      <option value="budget">Budget/Limited Service</option>
+    </select>
+  </div>
+  <div>
+    <label>Segment</label>
+    <select id="segFilter">
+      <option value="all">All Segments</option>
+      <option value="leisure">Leisure</option>
+      <option value="corporate">Corporate</option>
+      <option value="groups">Groups &amp; Events</option>
+    </select>
+  </div>
+  <div class="spacer"></div>
+  <button class="btn btn-outline" onclick="exportData()">⬇ Export</button>
+  <button class="btn btn-primary" onclick="refreshData()">↻ Refresh</button>
+</div>
+
+<!-- ══════════════════ MAIN ══════════════════ -->
+<main>
+
+  <!-- KPI Cards -->
+  <div class="section-title">Portfolio KPIs — YTD 2026 vs YTD 2025</div>
+  <div class="kpi-grid">
+    <div class="kpi-card accent">
+      <div class="kpi-label">Occupancy</div>
+      <div class="kpi-value" id="kpi-occ">74.3%</div>
+      <span class="kpi-delta up">▲ 3.1pp</span>
+      <div class="kpi-sub">vs 71.2% prior year</div>
+    </div>
+    <div class="kpi-card gold">
+      <div class="kpi-label">ADR</div>
+      <div class="kpi-value" id="kpi-adr">£148.60</div>
+      <span class="kpi-delta up">▲ 6.2%</span>
+      <div class="kpi-sub">vs £139.90 prior year</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">RevPAR</div>
+      <div class="kpi-value" id="kpi-revpar">£110.40</div>
+      <span class="kpi-delta up">▲ 9.7%</span>
+      <div class="kpi-sub">vs £100.60 prior year</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">TRevPAR</div>
+      <div class="kpi-value" id="kpi-trevpar">£152.80</div>
+      <span class="kpi-delta up">▲ 7.4%</span>
+      <div class="kpi-sub">F&amp;B, Spa &amp; Ancillary</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-label">GOP PAR</div>
+      <div class="kpi-value" id="kpi-gop">£61.20</div>
+      <span class="kpi-delta up">▲ 11.2%</span>
+      <div class="kpi-sub">GOP Margin 40.1%</div>
+    </div>
+    <div class="kpi-card accent">
+      <div class="kpi-label">Yield %</div>
+      <div class="kpi-value" id="kpi-yield">55.2%</div>
+      <span class="kpi-delta up">▲ 4.8pp</span>
+      <div class="kpi-sub">RevPAR / Max Rate</div>
+    </div>
+    <div class="kpi-card gold">
+      <div class="kpi-label">Total Rooms</div>
+      <div class="kpi-value">1,248</div>
+      <span class="kpi-delta up">▲ 64 added</span>
+      <div class="kpi-sub">8 properties, 3 regions</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Room Nights</div>
+      <div class="kpi-value">168K</div>
+      <span class="kpi-delta up">▲ 8.3%</span>
+      <div class="kpi-sub">YTD sold nights</div>
+    </div>
+  </div>
+
+  <!-- Row 1: RevPAR Trend + Channel Mix -->
+  <div class="section-title">Performance Trends</div>
+  <div class="charts-grid" style="margin-bottom:16px;">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Monthly RevPAR — 2025 vs 2026</div>
+          <div class="chart-sub">Revenue per Available Room (£)</div>
+        </div>
+        <span class="chart-badge badge-accent">RevPAR</span>
+      </div>
+      <div class="chart-wrap"><canvas id="revparChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Revenue by Channel</div>
+          <div class="chart-sub">YTD 2026 booking source mix</div>
+        </div>
+        <span class="chart-badge badge-gold">Mix</span>
+      </div>
+      <div class="chart-wrap"><canvas id="channelChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Row 2: Occ vs ADR + Segment + Booking Pace -->
+  <div class="charts-grid-3">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Occupancy vs ADR</div>
+          <div class="chart-sub">Monthly trend, 2026 YTD</div>
+        </div>
+        <span class="chart-badge badge-accent">Dual</span>
+      </div>
+      <div class="chart-wrap-sm"><canvas id="occAdrChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Segment Mix</div>
+          <div class="chart-sub">Revenue contribution by guest type</div>
+        </div>
+      </div>
+      <div class="chart-wrap-sm"><canvas id="segmentChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Booking Pace</div>
+          <div class="chart-sub">Lead time (days before arrival)</div>
+        </div>
+        <span class="chart-badge badge-gold">OTB</span>
+      </div>
+      <div class="chart-wrap-sm"><canvas id="paceChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Property Table -->
+  <div class="section-title">Property Performance Breakdown</div>
+  <div class="table-card">
+    <div class="table-header">
+      <div>
+        <div class="chart-title">All Properties — YTD 2026</div>
+        <div class="chart-sub">Click column headers to sort</div>
+      </div>
+      <span class="chart-badge badge-accent">8 properties</span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table id="propTable">
+        <thead>
+          <tr>
+            <th onclick="sortTable(0)">Property</th>
+            <th onclick="sortTable(1)" class="num-right">Rooms</th>
+            <th onclick="sortTable(2)" class="num-right">Occ %</th>
+            <th onclick="sortTable(3)" class="num-right">ADR (£)</th>
+            <th onclick="sortTable(4)" class="num-right">RevPAR (£)</th>
+            <th onclick="sortTable(5)" class="num-right">TRevPAR (£)</th>
+            <th onclick="sortTable(6)" class="num-right">GOP PAR (£)</th>
+            <th onclick="sortTable(7)" class="num-right">Yield %</th>
+            <th onclick="sortTable(8)">vs LY</th>
+            <th onclick="sortTable(9)">Status</th>
+          </tr>
+        </thead>
+        <tbody id="propTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- RevPAR Heatmap -->
+  <div class="section-title">RevPAR Heatmap — Property × Month (£)</div>
+  <div class="chart-card" style="margin-bottom:28px;">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">Monthly RevPAR by Property</div>
+        <div class="chart-sub">2025 full year — colour intensity = performance vs portfolio average</div>
+      </div>
+    </div>
+    <div id="heatmapContainer" style="overflow-x:auto;"></div>
+  </div>
+
+  <!-- Property Benchmark Chart -->
+  <div class="section-title">Property Benchmark</div>
+  <div class="chart-card" style="margin-bottom:28px;">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">RevPAR by Property — YTD 2026</div>
+        <div class="chart-sub">Includes portfolio average benchmark line</div>
+      </div>
+    </div>
+    <div style="position:relative;height:280px;"><canvas id="benchmarkChart"></canvas></div>
+  </div>
+
+</main>
+
+<!-- ══════════════════ FOOTER ══════════════════ -->
+<footer>
+  <span>Meridian Hospitality Group &nbsp;·&nbsp; UK Hotel Yield Dashboard &nbsp;·&nbsp; Powered by Revenue Management Analytics</span>
+  <span>Data refreshed: <strong id="refreshTime"></strong> &nbsp;|&nbsp; STR Benchmarking integrated</span>
+</footer>
+
+<!-- ══════════════════ SCRIPTS ══════════════════ -->
+<script>
+// ─── COLOUR PALETTE ───────────────────────────────────────────────────────────
+const C = {
+  accent:'#2a9d8f', gold:'#e9c46a', red:'#e76f51',
+  green:'#57cc99', purple:'#a78bfa', blue:'#60a5fa',
+  muted:'#8ba3bc', border:'#1f3a56', text:'#e8edf2'
+};
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS_YTD = ['Jan','Feb']; // YTD Feb 2026
+
+// ─── PROPERTIES DATA ─────────────────────────────────────────────────────────
+const properties = [
+  { name:'The Meridian Mayfair',    city:'London',       stars:5, rooms:187, occ:83.1, adr:312.50, trevpar:485.20, gop:194.80, lychg:+10.2, category:'london' },
+  { name:'Meridian Canary Wharf',   city:'London',       stars:4, rooms:224, occ:78.4, adr:228.00, trevpar:298.40, gop:118.50, lychg:+7.8,  category:'london' },
+  { name:'Meridian Manchester',     city:'Manchester',   stars:4, rooms:189, occ:72.6, adr:138.00, trevpar:172.50, gop:65.30,  lychg:+9.1,  category:'regional' },
+  { name:'Meridian Edinburgh',      city:'Edinburgh',    stars:4, rooms:156, occ:76.9, adr:155.00, trevpar:196.80, gop:74.20,  lychg:+12.4, category:'regional' },
+  { name:'Meridian Birmingham',     city:'Birmingham',   stars:4, rooms:198, occ:69.3, adr:121.00, trevpar:148.30, gop:54.10,  lychg:+5.6,  category:'regional' },
+  { name:'Meridian Bristol',        city:'Bristol',      stars:4, rooms:142, occ:74.2, adr:132.50, trevpar:163.60, gop:61.70,  lychg:+8.3,  category:'regional' },
+  { name:'Express Leeds Central',   city:'Leeds',        stars:3, rooms:88,  occ:77.8, adr:89.00,  trevpar:98.50,  gop:38.40,  lychg:+4.2,  category:'budget' },
+  { name:'Express Liverpool Street',city:'Liverpool',    stars:3, rooms:64,  occ:71.4, adr:82.00,  trevpar:90.20,  gop:34.80,  lychg:+3.8,  category:'budget' },
+];
+
+properties.forEach(p => {
+  p.revpar  = +(p.occ/100 * p.adr).toFixed(2);
+  p.yieldPct = +(p.revpar / (p.adr * 1.25) * 100).toFixed(1);
+  p.gopPar  = p.gop;
+});
+
+// ─── POPULATE DATE ────────────────────────────────────────────────────────────
+const now = new Date();
+document.getElementById('liveDate').textContent =
+  now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+document.getElementById('refreshTime').textContent =
+  now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + ' GMT';
+
+// ─── CHART DEFAULTS ──────────────────────────────────────────────────────────
+Chart.defaults.color = C.muted;
+Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+Chart.defaults.font.size = 11;
+
+const gridOpts = { color: C.border, drawBorder: false };
+const tooltipOpts = {
+  backgroundColor: '#0f2034',
+  borderColor: C.border,
+  borderWidth: 1,
+  titleColor: C.text,
+  bodyColor: C.muted,
+  padding: 10,
+  cornerRadius: 6,
+};
+
+// ─── 1. RevPAR TREND CHART ───────────────────────────────────────────────────
+const revpar2025 = [88.2,79.4,105.6,112.3,118.7,131.4,149.2,145.8,128.4,108.6,89.3,97.4];
+const revpar2026 = [96.8,88.1,null,null,null,null,null,null,null,null,null,null];
+
+new Chart(document.getElementById('revparChart'), {
+  type:'line',
+  data:{
+    labels: MONTHS,
+    datasets:[
+      {
+        label:'2026',
+        data: revpar2026,
+        borderColor: C.accent,
+        backgroundColor:'rgba(42,157,143,.12)',
+        fill: true,
+        tension: .4,
+        pointRadius: 4,
+        pointBackgroundColor: C.accent,
+        borderWidth: 2.5,
+        spanGaps: false,
+      },
+      {
+        label:'2025',
+        data: revpar2025,
+        borderColor: C.muted,
+        backgroundColor:'transparent',
+        fill: false,
+        tension: .4,
+        pointRadius: 3,
+        borderDash:[4,3],
+        borderWidth: 1.5,
+      }
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{position:'top', align:'end'}, tooltip:{...tooltipOpts, callbacks:{label:ctx=>`£${ctx.parsed.y?.toFixed(2)}`}} },
+    scales:{
+      x:{ grid:gridOpts },
+      y:{ grid:gridOpts, ticks:{ callback:v=>`£${v}` }, beginAtZero:false, min:60 }
+    },
+    interaction:{ mode:'index', intersect:false }
+  }
+});
+
+// ─── 2. CHANNEL MIX DONUT ────────────────────────────────────────────────────
+new Chart(document.getElementById('channelChart'), {
+  type:'doughnut',
+  data:{
+    labels:['Direct / Web','OTA (Booking.com)','OTA (Expedia)','Corporate GDS','Groups & Events','Walk-in / Other'],
+    datasets:[{
+      data:[28.4, 24.1, 14.7, 18.9, 10.2, 3.7],
+      backgroundColor:[C.accent, C.gold, C.purple, C.blue, C.red, C.muted],
+      borderWidth:2,
+      borderColor:'#16293e',
+      hoverOffset:6,
+    }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    cutout:'62%',
+    plugins:{
+      legend:{ position:'right', labels:{ boxWidth:12, padding:10, font:{size:10} } },
+      tooltip:{ ...tooltipOpts, callbacks:{ label:ctx=>`${ctx.label}: ${ctx.parsed.toFixed(1)}%` } }
+    }
+  }
+});
+
+// ─── 3. OCC vs ADR COMBO ─────────────────────────────────────────────────────
+new Chart(document.getElementById('occAdrChart'), {
+  type:'bar',
+  data:{
+    labels: MONTHS_YTD,
+    datasets:[
+      {
+        label:'Occupancy %',
+        type:'bar',
+        data:[71.2, 74.3],
+        backgroundColor:`rgba(42,157,143,.6)`,
+        borderColor: C.accent,
+        borderWidth:1,
+        yAxisID:'y',
+        borderRadius:4,
+      },
+      {
+        label:'ADR (£)',
+        type:'line',
+        data:[139.9, 148.6],
+        borderColor: C.gold,
+        backgroundColor:'transparent',
+        pointBackgroundColor: C.gold,
+        yAxisID:'y1',
+        tension:.3,
+        pointRadius:5,
+        borderWidth:2.5,
+      }
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{position:'top', align:'end'}, tooltip:{...tooltipOpts} },
+    scales:{
+      x:{ grid:gridOpts },
+      y:{ grid:gridOpts, ticks:{ callback:v=>`${v}%` }, title:{display:true, text:'Occ %', font:{size:10}}, max:100 },
+      y1:{ position:'right', grid:{display:false}, ticks:{ callback:v=>`£${v}` }, title:{display:true, text:'ADR', font:{size:10}} }
+    }
+  }
+});
+
+// ─── 4. SEGMENT MIX ──────────────────────────────────────────────────────────
+new Chart(document.getElementById('segmentChart'), {
+  type:'bar',
+  data:{
+    labels:['Leisure','Corporate','Groups','Long Stay','Package'],
+    datasets:[
+      {
+        label:'2026',
+        data:[38.4, 29.7, 16.2, 8.9, 6.8],
+        backgroundColor:[C.accent,C.gold,C.purple,C.blue,C.red],
+        borderRadius:4,
+      }
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    indexAxis:'y',
+    plugins:{ legend:{display:false}, tooltip:{...tooltipOpts, callbacks:{label:ctx=>`${ctx.parsed.x.toFixed(1)}%`}} },
+    scales:{
+      x:{ grid:gridOpts, ticks:{ callback:v=>`${v}%` }, max:50 },
+      y:{ grid:{display:false} }
+    }
+  }
+});
+
+// ─── 5. BOOKING PACE ─────────────────────────────────────────────────────────
+const paceLabels = ['0–3d','4–7d','8–14d','15–30d','31–60d','61–90d','90d+'];
+new Chart(document.getElementById('paceChart'), {
+  type:'bar',
+  data:{
+    labels: paceLabels,
+    datasets:[
+      {
+        label:'Room Nights',
+        data:[4200, 6800, 11200, 18600, 14200, 8400, 3600],
+        backgroundColor: paceLabels.map((_,i)=>i<2?C.red:i<4?C.gold:C.accent),
+        borderRadius:4,
+      }
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, tooltip:{...tooltipOpts} },
+    scales:{
+      x:{ grid:{display:false} },
+      y:{ grid:gridOpts, ticks:{ callback:v=>`${(v/1000).toFixed(0)}k` } }
+    }
+  }
+});
+
+// ─── 6. PROPERTY TABLE ───────────────────────────────────────────────────────
+function occColor(v) {
+  if (v >= 78) return `rgba(42,157,143,${(v-70)/40})`;
+  if (v >= 70) return `rgba(233,196,106,${(v-60)/40})`;
+  return `rgba(231,111,81,${0.4+(80-v)/80})`;
+}
+
+function renderTable(data) {
+  const tbody = document.getElementById('propTableBody');
+  tbody.innerHTML = '';
+  data.forEach(p => {
+    const stars = '★'.repeat(p.stars) + '☆'.repeat(5-p.stars);
+    const statusClass = p.occ >= 78 ? 'pill-green' : p.occ >= 70 ? 'pill-amber' : 'pill-red';
+    const statusText  = p.occ >= 78 ? 'On Target' : p.occ >= 70 ? 'Near Target' : 'Below Target';
+    const lychgColor  = p.lychg >= 0 ? 'text-green' : 'text-red';
+    const lychgSign   = p.lychg >= 0 ? '+' : '';
+    const barColor    = p.occ >= 78 ? C.accent : p.occ >= 70 ? C.gold : C.red;
+
+    tbody.innerHTML += `
+      <tr>
+        <td>
+          <div class="prop-name">${p.name}</div>
+          <div class="prop-city"><span class="star">${stars}</span> · ${p.city}</div>
+        </td>
+        <td class="num-right">${p.rooms}</td>
+        <td>
+          <div class="occ-bar-wrap">
+            <div class="occ-bar"><div class="occ-bar-fill" style="width:${p.occ}%;background:${barColor};"></div></div>
+            <span>${p.occ}%</span>
+          </div>
+        </td>
+        <td class="num-right">£${p.adr.toFixed(2)}</td>
+        <td class="num-right"><strong>£${p.revpar.toFixed(2)}</strong></td>
+        <td class="num-right">£${p.trevpar.toFixed(2)}</td>
+        <td class="num-right">£${p.gop.toFixed(2)}</td>
+        <td class="num-right">${p.yieldPct}%</td>
+        <td class="num-right ${lychgColor}">${lychgSign}${p.lychg}%</td>
+        <td><span class="pill ${statusClass}">${statusText}</span></td>
+      </tr>`;
+  });
+}
+renderTable(properties);
+
+// ─── TABLE SORT ───────────────────────────────────────────────────────────────
+let sortDir = {};
+function sortTable(col) {
+  const keys = ['name','rooms','occ','adr','revpar','trevpar','gop','yieldPct','lychg',''];
+  const key = keys[col];
+  if (!key) return;
+  sortDir[col] = !sortDir[col];
+  const sorted = [...properties].sort((a,b) => {
+    const va = a[key], vb = b[key];
+    return typeof va === 'string'
+      ? (sortDir[col] ? va.localeCompare(vb) : vb.localeCompare(va))
+      : (sortDir[col] ? va - vb : vb - va);
+  });
+  document.querySelectorAll('thead th').forEach((th,i)=>th.classList.toggle('sorted', i===col));
+  renderTable(sorted);
+}
+
+// ─── 7. RevPAR HEATMAP ───────────────────────────────────────────────────────
+const heatmapData = {
+  'Meridian Mayfair':       [198,171,262,284,308,334,378,372,318,267,204,231],
+  'Canary Wharf':           [148,129,184,201,219,238,261,258,226,194,152,168],
+  'Manchester':             [82,71,104,114,122,134,152,148,132,110,86,96],
+  'Edinburgh':              [91,79,118,132,148,161,198,192,158,128,94,108],
+  'Birmingham':             [71,62,88,97,104,114,129,126,112,94,74,82],
+  'Bristol':                [78,68,96,108,116,126,142,138,122,102,80,89],
+  'Express Leeds':          [58,51,68,74,79,86,97,94,84,71,57,63],
+  'Express Liverpool':      [52,46,62,68,73,79,89,87,77,65,52,58],
+};
+const allVals = Object.values(heatmapData).flat();
+const heatMin = Math.min(...allVals), heatMax = Math.max(...allVals);
+
+function heatColor(val) {
+  const t = (val - heatMin) / (heatMax - heatMin);
+  if (t < .33) return `rgba(231,111,81,${0.25+t})`;
+  if (t < .66) return `rgba(233,196,106,${0.25+t*.8})`;
+  return `rgba(42,157,143,${0.25+t*.75})`;
+}
+
+function buildHeatmap() {
+  const container = document.getElementById('heatmapContainer');
+  let html = `<div class="heatmap-grid">`;
+  html += `<div class="hm-label"></div>`;
+  MONTHS.forEach(m => html += `<div class="hm-month">${m}</div>`);
+  Object.entries(heatmapData).forEach(([prop, vals]) => {
+    html += `<div class="hm-label" style="font-size:.68rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${prop}</div>`;
+    vals.forEach(v => {
+      html += `<div class="hm-cell" style="background:${heatColor(v)};color:#e8edf2;">£${v}</div>`;
+    });
+  });
+  html += `</div>`;
+  container.innerHTML = html;
+}
+buildHeatmap();
+
+// ─── 8. BENCHMARK CHART ──────────────────────────────────────────────────────
+const avgRevpar = +(properties.reduce((s,p)=>s+p.revpar,0)/properties.length).toFixed(2);
+new Chart(document.getElementById('benchmarkChart'), {
+  type:'bar',
+  data:{
+    labels: properties.map(p=>p.name.replace('Meridian ','').replace('Express ','')),
+    datasets:[
+      {
+        label:'RevPAR (£)',
+        data: properties.map(p=>p.revpar),
+        backgroundColor: properties.map(p=>p.revpar >= avgRevpar ? `rgba(42,157,143,.75)` : `rgba(231,111,81,.65)`),
+        borderColor:    properties.map(p=>p.revpar >= avgRevpar ? C.accent : C.red),
+        borderWidth:1,
+        borderRadius:5,
+      }
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{
+      legend:{display:false},
+      tooltip:{...tooltipOpts, callbacks:{label:ctx=>`£${ctx.parsed.y.toFixed(2)}`}},
+      annotation: undefined,
+    },
+    scales:{
+      x:{ grid:{display:false}, ticks:{font:{size:10}} },
+      y:{ grid:gridOpts, ticks:{callback:v=>`£${v}`}, beginAtZero:true }
+    }
+  },
+  plugins:[{
+    id:'avgLine',
+    afterDraw(chart) {
+      const {ctx, chartArea:{left,right,top}, scales:{y}} = chart;
+      const yPos = y.getPixelForValue(avgRevpar);
+      ctx.save();
+      ctx.strokeStyle = C.gold;
+      ctx.lineWidth   = 1.5;
+      ctx.setLineDash([6,4]);
+      ctx.beginPath(); ctx.moveTo(left,yPos); ctx.lineTo(right,yPos); ctx.stroke();
+      ctx.fillStyle = C.gold;
+      ctx.font = '10px "Segoe UI"';
+      ctx.fillText(`Portfolio Avg £${avgRevpar}`, left+6, yPos-5);
+      ctx.restore();
+    }
+  }]
+});
+
+// ─── FILTERS ─────────────────────────────────────────────────────────────────
+document.getElementById('propFilter').addEventListener('change', function() {
+  const v = this.value;
+  const filtered = v === 'all' ? properties : properties.filter(p=>p.category===v);
+  renderTable(filtered);
+});
+
+// ─── UTILITY ─────────────────────────────────────────────────────────────────
+function refreshData() {
+  document.getElementById('refreshTime').textContent =
+    new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + ' GMT';
+  // In production: trigger API fetch here
+}
+
+function exportData() {
+  const rows = [['Property','City','Stars','Rooms','Occ%','ADR(£)','RevPAR(£)','TRevPAR(£)','GOP PAR(£)','Yield%','vs LY%']];
+  properties.forEach(p => rows.push([
+    p.name, p.city, p.stars, p.rooms,
+    p.occ, p.adr, p.revpar, p.trevpar, p.gop, p.yieldPct, p.lychg
+  ]));
+  const csv = rows.map(r=>r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'hotel_yield_dashboard_ytd2026.csv';
+  a.click();
+}
+</script>
+</body>
+</html>
