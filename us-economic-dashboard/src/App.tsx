@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { QueryClient, QueryClientProvider, useIsFetching } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import type { DateRange } from './api/types';
+import { isUsingMockData } from './api/fred';
 import DateRangePicker from './components/DateRangePicker';
 import OverviewSection from './sections/OverviewSection';
 import GDPSection from './sections/GDPSection';
@@ -33,9 +34,10 @@ function Dashboard() {
   const [dateRange, setDateRange] = useState<DateRange>('5Y');
   const [dark, setDark] = useState(true);
 
-  // Track last data refresh time
+  // Track last data refresh time and mock data state
   const isFetching = useIsFetching();
   const [lastRefresh, setLastRefresh] = useState(new Date());
+  const [mockData, setMockData] = useState(false);
   const wasFetching = useRef(false);
 
   useEffect(() => {
@@ -44,6 +46,7 @@ function Dashboard() {
     } else if (wasFetching.current) {
       wasFetching.current = false;
       setLastRefresh(new Date());
+      setMockData(isUsingMockData());
     }
   }, [isFetching]);
 
@@ -57,6 +60,12 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 transition-colors dark:bg-gray-900 dark:text-gray-100">
+      {/* Mock data banner */}
+      {mockData && (
+        <div className="bg-amber-500/90 px-4 py-1.5 text-center text-xs font-medium text-white">
+          FRED API unreachable — showing simulated data for demo purposes
+        </div>
+      )}
       {/* Header */}
       <header className="sticky top-0 z-10 border-b border-gray-200 bg-white/80 backdrop-blur dark:border-gray-700 dark:bg-gray-900/80">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
