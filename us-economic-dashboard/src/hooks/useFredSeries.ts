@@ -3,7 +3,7 @@ import { subYears } from 'date-fns';
 import { fetchFredSeries } from '../api/fred';
 import type { DateRange, FredObservation } from '../api/types';
 
-const API_KEY = import.meta.env.VITE_FRED_API_KEY as string;
+const API_KEY = (import.meta.env.VITE_FRED_API_KEY as string) || 'dcbf5314bb665752dcf9667c3db40daf';
 
 function getStartDate(range: DateRange): Date | null {
   const now = new Date();
