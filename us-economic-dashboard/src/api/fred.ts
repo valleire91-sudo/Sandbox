@@ -62,7 +62,7 @@ export async function fetchFredSeries(
     response.data.observations as Array<{ date: string; value: string }>
   ).map((obs) => ({
     date: obs.date,
-    value: obs.value === '.' ? null : parseFloat(obs.value),
+    value: obs.value === '.' || isNaN(parseFloat(obs.value)) ? null : parseFloat(obs.value),
   }));
 
   setCache(seriesId, observations);

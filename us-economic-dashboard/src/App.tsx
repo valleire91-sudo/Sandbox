@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useState, useEffect, useRef } from 'react';
+import { QueryClient, QueryClientProvider, useIsFetching } from '@tanstack/react-query';
+import { format } from 'date-fns';
 import type { DateRange } from './api/types';
 import DateRangePicker from './components/DateRangePicker';
 import OverviewSection from './sections/OverviewSection';
@@ -32,20 +33,45 @@ function Dashboard() {
   const [dateRange, setDateRange] = useState<DateRange>('5Y');
   const [dark, setDark] = useState(true);
 
+  // Track last data refresh time
+  const isFetching = useIsFetching();
+  const [lastRefresh, setLastRefresh] = useState(new Date());
+  const wasFetching = useRef(false);
+
+  useEffect(() => {
+    if (isFetching > 0) {
+      wasFetching.current = true;
+    } else if (wasFetching.current) {
+      wasFetching.current = false;
+      setLastRefresh(new Date());
+    }
+  }, [isFetching]);
+
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
   }, [dark]);
+
+  const handleNavigate = (tab: string) => {
+    setActiveTab(tab as Tab);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 transition-colors dark:bg-gray-900 dark:text-gray-100">
       {/* Header */}
       <header className="sticky top-0 z-10 border-b border-gray-200 bg-white/80 backdrop-blur dark:border-gray-700 dark:bg-gray-900/80">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-          <h1 className="text-xl font-bold tracking-tight">
-            US Economic Dashboard
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-bold tracking-tight">
+              US Economic Dashboard
+            </h1>
+            <span className="hidden text-xs text-gray-400 dark:text-gray-500 sm:inline">
+              {isFetching > 0
+                ? 'Refreshing...'
+                : `Updated ${format(lastRefresh, 'MMM d, HH:mm')}`}
+            </span>
+          </div>
           <div className="flex items-center gap-4">
-            <DateRangePicker selected={dateRange} onChange={setDateRange} />
+            <DateRangePicker value={dateRange} onChange={setDateRange} />
             <button
               onClick={() => setDark(!dark)}
               className="rounded-lg border border-gray-300 p-2 text-sm hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
@@ -65,7 +91,7 @@ function Dashboard() {
                 onClick={() => setActiveTab(tab.key)}
                 className={`whitespace-nowrap border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
                   activeTab === tab.key
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
                     : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
                 }`}
               >
@@ -76,19 +102,34 @@ function Dashboard() {
         </div>
       </header>
 
-      {/* Content */}
+      {/* Content with fade-in transition */}
       <main className="mx-auto max-w-7xl px-4 py-6">
-        {activeTab === 'overview' && <OverviewSection dateRange={dateRange} />}
-        {activeTab === 'gdp' && <GDPSection dateRange={dateRange} />}
-        {activeTab === 'labour' && <LabourSection dateRange={dateRange} />}
-        {activeTab === 'inflation' && <InflationSection dateRange={dateRange} />}
-        {activeTab === 'monetary' && <MonetarySection dateRange={dateRange} />}
+        <div key={activeTab} className="animate-fadeIn">
+          {activeTab === 'overview' && (
+            <OverviewSection
+              dateRange={dateRange}
+              onNavigate={handleNavigate}
+            />
+          )}
+          {activeTab === 'gdp' && <GDPSection dateRange={dateRange} />}
+          {activeTab === 'labour' && <LabourSection dateRange={dateRange} />}
+          {activeTab === 'inflation' && (
+            <InflationSection dateRange={dateRange} />
+          )}
+          {activeTab === 'monetary' && (
+            <MonetarySection dateRange={dateRange} />
+          )}
+        </div>
       </main>
 
       {/* Footer */}
       <footer className="border-t border-gray-200 py-4 text-center text-xs text-gray-500 dark:border-gray-700 dark:text-gray-500">
-        Data sourced from FRED (Federal Reserve Bank of St. Louis). Set
-        VITE_FRED_API_KEY in .env to enable live data.
+        Data sourced from{' '}
+        <abbr title="Federal Reserve Economic Data" className="no-underline">
+          FRED
+        </abbr>
+        , Federal Reserve Bank of St. Louis &middot;{' '}
+        {format(new Date(), 'MMMM d, yyyy')}
       </footer>
     </div>
   );

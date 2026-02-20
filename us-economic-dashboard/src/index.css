@@ -6,3 +6,24 @@ body {
   margin: 0;
   min-width: 320px;
 }
+
+/* Tab content fade-in animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 200ms ease-in-out;
+}
+
+/* Ensure charts don't overflow their containers on mobile */
+.recharts-wrapper {
+  max-width: 100%;
+}
