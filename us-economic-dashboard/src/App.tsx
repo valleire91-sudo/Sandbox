@@ -28,6 +28,8 @@ const tabs: { key: Tab; label: string }[] = [
   { key: 'monetary', label: 'Monetary Policy' },
 ];
 
+const API_KEY = import.meta.env.VITE_FRED_API_KEY;
+
 function Dashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [dateRange, setDateRange] = useState<DateRange>('5Y');
@@ -57,6 +59,12 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 transition-colors dark:bg-gray-900 dark:text-gray-100">
+      {/* API key warning */}
+      {!API_KEY && (
+        <div className="bg-amber-500 px-4 py-2 text-center text-sm font-medium text-white">
+          VITE_FRED_API_KEY is missing — add it to your .env file and restart the dev server
+        </div>
+      )}
       {/* Header */}
       <header className="sticky top-0 z-10 border-b border-gray-200 bg-white/80 backdrop-blur dark:border-gray-700 dark:bg-gray-900/80">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">

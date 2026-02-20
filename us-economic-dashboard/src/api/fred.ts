@@ -1,4 +1,3 @@
-import axios from 'axios';
 import type { FredObservation } from './types';
 
 const FRED_BASE_URL = 'https://api.stlouisfed.org/fred/series/observations';
@@ -49,17 +48,26 @@ export async function fetchFredSeries(
   startDate.setFullYear(startDate.getFullYear() - LOOKBACK_YEARS);
   const observationStart = startDate.toISOString().slice(0, 10);
 
-  const response = await axios.get(FRED_BASE_URL, {
-    params: {
-      series_id: seriesId,
-      api_key: apiKey,
-      file_type: 'json',
-      observation_start: observationStart,
-    },
-  });
+  const url = `${FRED_BASE_URL}?series_id=${seriesId}&api_key=${apiKey}&file_type=json&observation_start=${observationStart}`;
+
+  let response;
+  try {
+    response = await fetch(url);
+  } catch (err) {
+    console.error(`[FRED] Network error for ${seriesId}:`, err);
+    throw new Error(`Network error fetching ${seriesId}: ${err}`);
+  }
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    console.error(`[FRED] HTTP ${response.status} for ${seriesId}:`, text);
+    throw new Error(`FRED API returned ${response.status} for ${seriesId}`);
+  }
+
+  const json = await response.json();
 
   const observations: FredObservation[] = (
-    response.data.observations as Array<{ date: string; value: string }>
+    json.observations as Array<{ date: string; value: string }>
   ).map((obs) => ({
     date: obs.date,
     value: obs.value === '.' || isNaN(parseFloat(obs.value)) ? null : parseFloat(obs.value),

@@ -52,6 +52,7 @@ export function useFredSeries(seriesId: string, dateRange: DateRange) {
     data: filtered,
     isLoading: query.isLoading,
     isError: query.isError,
+    error: query.error,
     refetch: query.refetch,
   };
 }

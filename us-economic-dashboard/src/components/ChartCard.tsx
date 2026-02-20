@@ -6,6 +6,7 @@ interface ChartCardProps {
   subtitle?: string;
   isLoading?: boolean;
   isError?: boolean;
+  errorMessage?: string;
   onRetry?: () => void;
   children: ReactNode;
   /** FRED series IDs cited in this chart */
@@ -32,7 +33,7 @@ function ChartSkeleton() {
   );
 }
 
-function ErrorState({ onRetry }: { onRetry?: () => void }) {
+function ErrorState({ onRetry, errorMessage }: { onRetry?: () => void; errorMessage?: string }) {
   return (
     <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-rose-300 bg-rose-50 dark:border-rose-700 dark:bg-rose-950/30">
       <svg
@@ -51,6 +52,11 @@ function ErrorState({ onRetry }: { onRetry?: () => void }) {
       <p className="text-sm font-medium text-rose-600 dark:text-rose-400">
         Failed to load data
       </p>
+      {errorMessage && (
+        <p className="max-w-xs text-center text-xs text-rose-500 dark:text-rose-400">
+          {errorMessage}
+        </p>
+      )}
       {onRetry && (
         <button
           onClick={onRetry}
@@ -91,6 +97,7 @@ export default function ChartCard({
   subtitle,
   isLoading = false,
   isError = false,
+  errorMessage,
   onRetry,
   children,
   seriesIds,
@@ -142,7 +149,7 @@ export default function ChartCard({
         {isLoading ? (
           <ChartSkeleton />
         ) : isError ? (
-          <ErrorState onRetry={onRetry} />
+          <ErrorState onRetry={onRetry} errorMessage={errorMessage} />
         ) : (
           <div className="h-64">{children}</div>
         )}
