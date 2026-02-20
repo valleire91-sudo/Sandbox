@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { FredObservation } from './types';
 
-const FRED_BASE_URL = '/api/fred/series/observations';
+const FRED_BASE_URL = 'https://api.stlouisfed.org/fred/series/observations';
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 const LOOKBACK_YEARS = 15;
 

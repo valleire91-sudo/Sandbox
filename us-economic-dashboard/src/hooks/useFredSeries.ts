@@ -34,7 +34,12 @@ function filterByDateRange(
 export function useFredSeries(seriesId: string, dateRange: DateRange) {
   const query = useQuery({
     queryKey: ['fred', seriesId],
-    queryFn: () => fetchFredSeries(seriesId, API_KEY),
+    queryFn: () => {
+      if (!API_KEY) {
+        throw new Error('VITE_FRED_API_KEY is not set in .env');
+      }
+      return fetchFredSeries(seriesId, API_KEY);
+    },
     staleTime: 60 * 60 * 1000, // 1 hour
     retry: 2,
   });
