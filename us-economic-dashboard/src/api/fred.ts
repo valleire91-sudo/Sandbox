@@ -1,6 +1,7 @@
 import type { FredObservation } from './types';
 
-const FRED_BASE_URL = '/api/fred/series/observations';
+const FRED_BASE = 'https://api.stlouisfed.org/fred/series/observations';
+const CORS_PROXY = 'https://corsproxy.io/?url=';
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 const LOOKBACK_YEARS = 15;
 
@@ -48,7 +49,8 @@ export async function fetchFredSeries(
   startDate.setFullYear(startDate.getFullYear() - LOOKBACK_YEARS);
   const observationStart = startDate.toISOString().slice(0, 10);
 
-  const url = `${FRED_BASE_URL}?series_id=${seriesId}&api_key=${apiKey}&file_type=json&observation_start=${observationStart}`;
+  const target = `${FRED_BASE}?series_id=${seriesId}&api_key=${apiKey}&file_type=json&observation_start=${observationStart}`;
+  const url = `${CORS_PROXY}${encodeURIComponent(target)}`;
 
   let response;
   try {
